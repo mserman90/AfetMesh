@@ -333,7 +333,7 @@ class AfetMeshDesktopApp:
             ("🚨 ENKAZ ALTINDAYIM", "#f38ba8"),
             ("🤕 YARALIYIM", "#fab387"),
             ("🚑 ACİL YARDIM LAZIM", "#f9e2af"),
-            ("👍 GÜVENDEDAYIM", "#a6e3a1"),
+            ("👍 GÜVENDEYİM", "#a6e3a1"),
             ("💧 SU / GIDA LAZIM", "#89b4fa")
         ]
 
@@ -359,16 +359,32 @@ class AfetMeshDesktopApp:
         self.sos_txt.pack(fill=tk.X, padx=20, pady=5)
 
     def _send_sos_broadcast(self, status_text):
-        self.engine.active_sos_status = status_text
-        packet = MeshPacket(
-            packet_type="EMERGENCY_SOS",
-            payload=f"PC ACİL SOS: {status_text}",
-            sender_id=self.engine.node_id,
-            sender_name=self.engine.device_name,
-            sos_status=status_text
-        )
-        self.engine.send_packet(packet)
-        messagebox.showinfo("SOS Yayınlandı", f"SOS Uyarısı tüm Android telefonlara iletildi:\n{status_text}")
+        if "GÜVENDE" in status_text.upper():
+            # Stop siren if active
+            if self.siren_playing:
+                self.siren_playing = False
+                self.btn_siren.config(text="🔊 PC Alarm Sirenini Başlat", bg="#ef4444", fg="white")
+            self.engine.active_sos_status = None
+            packet = MeshPacket(
+                packet_type="EMERGENCY_SOS",
+                payload=f"PC DURUM BİLDİRİMİ: {status_text}",
+                sender_id=self.engine.node_id,
+                sender_name=self.engine.device_name,
+                sos_status=status_text
+            )
+            self.engine.send_packet(packet)
+            messagebox.showinfo("Durum Güncellendi", f"Güvende olduğunuz bildirildi. Aktif SOS alarmları durduruldu:\n{status_text}")
+        else:
+            self.engine.active_sos_status = status_text
+            packet = MeshPacket(
+                packet_type="EMERGENCY_SOS",
+                payload=f"PC ACİL SOS: {status_text}",
+                sender_id=self.engine.node_id,
+                sender_name=self.engine.device_name,
+                sos_status=status_text
+            )
+            self.engine.send_packet(packet)
+            messagebox.showinfo("SOS Yayınlandı", f"SOS Uyarısı tüm Android telefonlara iletildi:\n{status_text}")
 
     def _toggle_pc_siren(self):
         self.siren_playing = not self.siren_playing
@@ -573,14 +589,17 @@ class AfetMeshDesktopApp:
             pass
 
     def _on_sos_alert(self, packet):
-        try:
-            winsound.Beep(2000, 300)
-        except:
+        if packet.sosStatus and "GÜVENDE" in packet.sosStatus.upper():
             pass
+        else:
+            try:
+                winsound.Beep(2000, 300)
+            except:
+                pass
 
         def update_sos_text():
             self.sos_txt.config(state=tk.NORMAL)
-            self.sos_txt.insert("1.0", f"🚨 ACİL SOS: {packet.senderName} ({packet.sosStatus}) - IP: {packet.id}\n")
+            self.sos_txt.insert("1.0", f"🚨 BİLDİRİM: {packet.senderName} ({packet.sosStatus or packet.payload})\n")
             self.sos_txt.config(state=tk.DISABLED)
 
         self.root.after(0, update_sos_text)
