@@ -92,27 +92,52 @@ class AfetMeshRepository(private val context: Context) {
     }
 
     fun sendSosBroadcast(status: String) {
-        _activeSosStatus.value = status
-        meshEngine.activeSosStatus = status
-        val loc = _currentLocation.value
+        val isSafeStatus = status.contains("GÜVENDE", ignoreCase = true)
 
-        val packet = MeshPacket(
-            id = UUID.randomUUID().toString(),
-            senderId = meshEngine.nodeId,
-            senderName = meshEngine.deviceName,
-            recipientId = "*", // Broadcast
-            type = PacketType.EMERGENCY_SOS,
-            payload = "ACİL SOS BİLDİRİMİ: $status",
-            latitude = loc?.latitude,
-            longitude = loc?.longitude,
-            sosStatus = status
-        )
+        if (isSafeStatus) {
+            // Cancel active siren and flashlight strobe when user reports SAFE
+            beaconManager.stopSirenAlert()
+            beaconManager.stopFlashlightSosStrobe()
+            _activeSosStatus.value = status
+            meshEngine.activeSosStatus = status
+            val loc = _currentLocation.value
 
-        meshEngine.sendPacket(packet)
+            val packet = MeshPacket(
+                id = UUID.randomUUID().toString(),
+                senderId = meshEngine.nodeId,
+                senderName = meshEngine.deviceName,
+                recipientId = "*", // Broadcast
+                type = PacketType.EMERGENCY_SOS,
+                payload = "DURUM BİLDİRİMİ: $status",
+                latitude = loc?.latitude,
+                longitude = loc?.longitude,
+                sosStatus = status
+            )
 
-        // Trigger local beacon alerts
-        beaconManager.startSirenAlert()
-        beaconManager.startFlashlightSosStrobe()
+            meshEngine.sendPacket(packet)
+        } else {
+            _activeSosStatus.value = status
+            meshEngine.activeSosStatus = status
+            val loc = _currentLocation.value
+
+            val packet = MeshPacket(
+                id = UUID.randomUUID().toString(),
+                senderId = meshEngine.nodeId,
+                senderName = meshEngine.deviceName,
+                recipientId = "*", // Broadcast
+                type = PacketType.EMERGENCY_SOS,
+                payload = "ACİL SOS BİLDİRİMİ: $status",
+                latitude = loc?.latitude,
+                longitude = loc?.longitude,
+                sosStatus = status
+            )
+
+            meshEngine.sendPacket(packet)
+
+            // Trigger local beacon alerts for actual emergency SOS statuses
+            beaconManager.startSirenAlert()
+            beaconManager.startFlashlightSosStrobe()
+        }
     }
 
     fun cancelSos() {
