@@ -16,6 +16,12 @@ import java.util.UUID
 
 class AfetMeshRepository(private val context: Context) {
 
+    private val prefs = context.getSharedPreferences("afetmesh_prefs", Context.MODE_PRIVATE)
+    private val _userName = MutableStateFlow(
+        prefs.getString("user_name", null) ?: (android.os.Build.MODEL ?: "Afet Kullanıcısı")
+    )
+    val userName: StateFlow<String> = _userName.asStateFlow()
+
     val meshEngine = MeshEngine(context)
     val beaconManager = DisasterBeaconManager(context)
     val voiceStreamManager = VoiceStreamManager(context)
@@ -40,6 +46,7 @@ class AfetMeshRepository(private val context: Context) {
     val activeSosAlerts: StateFlow<List<MeshPacket>> = meshEngine.activeSosAlerts
 
     init {
+        meshEngine.deviceName = _userName.value
         meshEngine.start()
         locationHelper.startLocationUpdates { loc ->
             _currentLocation.value = loc
@@ -215,6 +222,15 @@ class AfetMeshRepository(private val context: Context) {
 
     fun stopVideoStream() {
         videoStreamManager.stopVideoStream()
+    }
+
+    fun setUserName(name: String) {
+        if (name.isNotBlank()) {
+            val cleanName = name.trim()
+            _userName.value = cleanName
+            prefs.edit().putString("user_name", cleanName).apply()
+            meshEngine.updateDeviceName(cleanName)
+        }
     }
 
     fun cleanup() {

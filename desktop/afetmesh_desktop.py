@@ -11,7 +11,7 @@ import winsound
 from io import BytesIO
 from PIL import Image, ImageTk
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 
 # Audio & Video imports
 try:
@@ -270,26 +270,63 @@ class AfetMeshDesktopApp:
         self.messages = []
         self.sos_alerts = []
 
+        self.profile_path = os.path.join(os.path.expanduser("~"), ".afetmesh_pc_profile.json")
+        saved_name = self._load_saved_user_name()
+
         self.engine = DesktopMeshEngine(
             on_packet_received=self._on_packet_received,
             on_peer_updated=self._on_peer_updated,
             on_video_frame=self._on_video_frame,
             on_sos_alert=self._on_sos_alert
         )
+        if saved_name:
+            self.engine.device_name = saved_name
 
         self._setup_ui()
         self.engine.start()
+
+    def _load_saved_user_name(self):
+        try:
+            if os.path.exists(self.profile_path):
+                with open(self.profile_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return data.get("user_name")
+        except:
+            pass
+        return None
+
+    def _save_user_name(self, name):
+        try:
+            with open(self.profile_path, "w", encoding="utf-8") as f:
+                json.dump({"user_name": name}, f, ensure_ascii=False)
+        except Exception as e:
+            print("Failed to save profile:", e)
 
     def _setup_ui(self):
         # Top Header Bar
         header = tk.Frame(self.root, bg="#11111b", height=50)
         header.pack(fill=tk.X, side=tk.TOP)
 
-        title_lbl = tk.Label(header, text="🚨 AfetMesh PC (Off-Grid)", font=("Segoe UI", 14, "bold"), fg="#f38ba8", bg="#11111b")
-        title_lbl.pack(side=tk.LEFT, padx=15, pady=8)
+        title_lbl = tk.Label(header, text="🚨 AfetMesh PC", font=("Segoe UI", 14, "bold"), fg="#f38ba8", bg="#11111b")
+        title_lbl.pack(side=tk.LEFT, padx=12, pady=8)
+
+        self.user_lbl = tk.Label(header, text=f"👤 Kullanıcı: {self.engine.device_name}", font=("Segoe UI", 10, "bold"), fg="#89b4fa", bg="#11111b")
+        self.user_lbl.pack(side=tk.LEFT, padx=10)
+
+        edit_btn = tk.Button(header, text="✏️ İsim Düzenle", font=("Segoe UI", 9, "bold"), bg="#313244", fg="#cdd6f4", command=self._edit_user_name)
+        edit_btn.pack(side=tk.LEFT, padx=5)
 
         self.status_lbl = tk.Label(header, text=f"ID: {self.engine.node_id} | Bağlı Cihaz: 0", font=("Segoe UI", 10), fg="#a6adc8", bg="#11111b")
         self.status_lbl.pack(side=tk.RIGHT, padx=15)
+
+    def _edit_user_name(self):
+        new_name = simpledialog.askstring("Kullanıcı Profili", "Afet mesh ağında görülecek Adınız & Soyadınız:", initialvalue=self.engine.device_name)
+        if new_name and new_name.strip():
+            clean_name = new_name.strip()
+            self.engine.device_name = clean_name
+            self._save_user_name(clean_name)
+            self.user_lbl.config(text=f"👤 Kullanıcı: {clean_name}")
+            messagebox.showinfo("Profil Güncellendi", f"Kullanıcı adınız başarıyla kaydedildi:\n{clean_name}")
 
         # Tab Notebook
         style = ttk.Style()

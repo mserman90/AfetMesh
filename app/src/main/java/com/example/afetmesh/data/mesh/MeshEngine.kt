@@ -28,6 +28,12 @@ class MeshEngine(private val context: Context) {
     val nodeId: String = "NODE_" + UUID.randomUUID().toString().take(6)
     var deviceName: String = Build.MODEL ?: "AfetCihaz"
 
+    fun updateDeviceName(newName: String) {
+        if (newName.isNotBlank()) {
+            deviceName = newName.trim()
+        }
+    }
+
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 

@@ -46,8 +46,48 @@ fun MainScreen(viewModel: MainScreenViewModel = viewModel()) {
     val currentLocation by viewModel.currentLocation.collectAsState()
     val activeSosStatus by viewModel.activeSosStatus.collectAsState()
     val incomingVideoBitmap by viewModel.incomingVideoBitmap.collectAsState()
+    val userName by viewModel.userName.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
+    var showNameDialog by remember { mutableStateOf(false) }
+    var tempNameInput by remember(userName) { mutableStateOf(userName) }
+
+    if (showNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showNameDialog = false },
+            title = { Text("Kullanıcı Profili / İsim Girişi", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Afet mesh ağında diğer kişilerin sizi tanıması için adınızı/takma adınızı yazın:", fontSize = 13.sp)
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = tempNameInput,
+                        onValueChange = { tempNameInput = it },
+                        label = { Text("Adınız & Soyadınız / Çağrı Adınız") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (tempNameInput.isNotBlank()) {
+                            viewModel.setUserName(tempNameInput)
+                        }
+                        showNameDialog = false
+                    }
+                ) {
+                    Text("Kaydet")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNameDialog = false }) {
+                    Text("İptal")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -58,28 +98,42 @@ fun MainScreen(viewModel: MainScreenViewModel = viewModel()) {
                             Text(
                                 "AfetMesh",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp,
+                                fontSize = 18.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(6.dp))
                             Surface(
                                 color = Color(0xFF4CAF50),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Text(
                                     "OFF-GRID",
-                                    fontSize = 10.sp,
+                                    fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                 )
                             }
                         }
-                        Text(
-                            "ID: ${viewModel.repository.meshEngine.nodeId} | Peer: ${peers.size}",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Kullanıcı: $userName",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            IconButton(
+                                onClick = { showNameDialog = true },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = "İsim Düzenle",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        }
                     }
                 },
                 actions = {

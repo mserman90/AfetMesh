@@ -20,6 +20,11 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     val currentLocation: StateFlow<Location?> = repository.currentLocation
     val activeSosStatus: StateFlow<String?> = repository.activeSosStatus
     val incomingVideoBitmap: StateFlow<Bitmap?> = repository.incomingVideoBitmap
+    val userName: StateFlow<String> = repository.userName
+
+    fun setUserName(name: String) {
+        repository.setUserName(name)
+    }
 
     val isSirenActive: Boolean
         get() = repository.beaconManager.isSirenActive
