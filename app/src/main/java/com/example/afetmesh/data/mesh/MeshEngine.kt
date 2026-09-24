@@ -196,9 +196,10 @@ class MeshEngine(private val context: Context) {
         try {
             val socket = Socket()
             socket.connect(InetSocketAddress(ip, port), 3000)
-            val writer = PrintWriter(socket.getOutputStream(), true, Charsets.UTF_8)
-            writer.println(rawJson)
-            writer.flush()
+            val os = socket.getOutputStream()
+            val bytes = (rawJson + "\n").toByteArray(Charsets.UTF_8)
+            os.write(bytes)
+            os.flush()
             socket.close()
         } catch (e: Exception) {
             Log.e("MeshEngine", "Failed to send TCP to $ip:$port", e)
