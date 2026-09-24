@@ -31,11 +31,14 @@ class MeshEngine(private val context: Context) {
     fun updateDeviceName(newName: String) {
         if (newName.isNotBlank()) {
             deviceName = newName.trim()
+            bleMeshManager?.updateDeviceName(deviceName)
         }
     }
 
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    private var bleMeshManager: BleMeshManager? = null
 
     private val udpPort = 8888
     private val tcpPort = 8889
@@ -65,6 +68,17 @@ class MeshEngine(private val context: Context) {
     fun start() {
         if (isRunning) return
         isRunning = true
+
+        if (bleMeshManager == null) {
+            bleMeshManager = BleMeshManager(
+                context = context,
+                nodeId = nodeId,
+                deviceName = deviceName,
+                onPeerDiscovered = { updatePeer(it) },
+                onPacketReceived = { processReceivedPacket(it, null) }
+            )
+        }
+        bleMeshManager?.start()
 
         startUdpBeaconListener()
         startUdpBeaconBroadcaster()
@@ -327,6 +341,7 @@ class MeshEngine(private val context: Context) {
     fun stop() {
         isRunning = false
         try {
+            bleMeshManager?.stop()
             udpBeaconSocket?.close()
             tcpServerSocket?.close()
         } catch (e: Exception) {
