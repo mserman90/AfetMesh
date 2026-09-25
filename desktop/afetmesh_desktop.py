@@ -66,19 +66,27 @@ class MeshPacket:
 
     @staticmethod
     def from_dict(d):
+        sender_id = d.get("senderId") or d.get("sender_id") or d.get("userId") or d.get("user_id") or d.get("device_id") or "EXT_PC_" + str(uuid.uuid4())[:6]
+        sender_name = d.get("senderName") or d.get("sender_name") or d.get("userName") or d.get("name") or "Diğer Afet Cihazı"
+        payload = d.get("payload") or d.get("message") or d.get("msg") or d.get("text") or ""
+        sos_status = d.get("sosStatus") or d.get("sos_status") or d.get("status")
+        packet_type = d.get("type") or d.get("packet_type") or ("EMERGENCY_SOS" if sos_status else "CHAT_TEXT")
+        lat = d.get("latitude") if d.get("latitude") is not None else d.get("lat")
+        lon = d.get("longitude") if d.get("longitude") is not None else (d.get("lng") or d.get("lon"))
+
         return MeshPacket(
-            packet_type=d.get("type", "CHAT_TEXT"),
-            payload=d.get("payload", ""),
-            sender_id=d.get("senderId", ""),
-            sender_name=d.get("senderName", "Bilinmeyen"),
-            recipient_id=d.get("recipientId", "*"),
-            sos_status=d.get("sosStatus"),
-            battery=d.get("senderBattery", -1),
-            lat=d.get("latitude"),
-            lon=d.get("longitude"),
+            packet_type=packet_type,
+            payload=payload,
+            sender_id=sender_id,
+            sender_name=sender_name,
+            recipient_id=d.get("recipientId") or d.get("recipient_id") or "*",
+            sos_status=sos_status,
+            battery=d.get("senderBattery") or d.get("battery", -1),
+            lat=lat,
+            lon=lon,
             ttl=d.get("ttl", 5),
             hops=d.get("hops", 0),
-            packet_id=d.get("id")
+            packet_id=d.get("id") or d.get("packet_id") or d.get("msg_id")
         )
 
 class DesktopMeshEngine:

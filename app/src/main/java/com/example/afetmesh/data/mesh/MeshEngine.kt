@@ -86,46 +86,55 @@ class MeshEngine(private val context: Context) {
         startPeerCleanupLoop()
     }
 
+    private val interopPorts = listOf(8888, 8889, 8000, 9999)
+
     private fun startUdpBeaconListener() {
-        scope.launch {
-            try {
-                udpBeaconSocket = DatagramSocket(null).apply {
-                    reuseAddress = true
-                    bind(InetSocketAddress(udpPort))
-                    broadcast = true
-                }
-                val buffer = ByteArray(4096)
-                while (isActive && isRunning) {
-                    val packet = DatagramPacket(buffer, buffer.size)
-                    udpBeaconSocket?.receive(packet)
-                    val senderIp = packet.address.hostAddress ?: continue
-
-                    // Ignore own broadcast
-                    if (isLocalAddress(packet.address)) continue
-
-                    val jsonStr = String(packet.data, 0, packet.length, Charsets.UTF_8)
-                    try {
-                        val meshPacket = json.decodeFromString<MeshPacket>(jsonStr)
-                        if (meshPacket.type == PacketType.DISCOVERY_BEACON) {
-                            val peer = PeerNode(
-                                id = meshPacket.senderId,
-                                name = meshPacket.senderName,
-                                ipAddress = senderIp,
-                                port = tcpPort,
-                                lastSeen = System.currentTimeMillis(),
-                                battery = meshPacket.senderBattery,
-                                isDirect = true,
-                                hops = 1,
-                                sosStatus = meshPacket.sosStatus
-                            )
-                            updatePeer(peer)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("MeshEngine", "Failed to parse UDP beacon", e)
+        interopPorts.forEach { port ->
+            scope.launch {
+                try {
+                    val socket = DatagramSocket(null).apply {
+                        reuseAddress = true
+                        bind(InetSocketAddress(port))
+                        broadcast = true
                     }
+                    val buffer = ByteArray(4096)
+                    while (isActive && isRunning) {
+                        val packet = DatagramPacket(buffer, buffer.size)
+                        socket.receive(packet)
+                        val senderIp = packet.address.hostAddress ?: continue
+
+                        // Ignore own broadcast
+                        if (isLocalAddress(packet.address)) continue
+
+                        val jsonStr = String(packet.data, 0, packet.length, Charsets.UTF_8)
+                        val meshPacket = try {
+                            json.decodeFromString<MeshPacket>(jsonStr)
+                        } catch (e: Exception) {
+                            InteropProtocolAdapter.parseExternalPacket(jsonStr)
+                        }
+
+                        meshPacket?.let { mp ->
+                            if (mp.type == PacketType.DISCOVERY_BEACON) {
+                                val peer = PeerNode(
+                                    id = mp.senderId,
+                                    name = mp.senderName,
+                                    ipAddress = senderIp,
+                                    port = tcpPort,
+                                    lastSeen = System.currentTimeMillis(),
+                                    battery = mp.senderBattery,
+                                    isDirect = true,
+                                    hops = 1,
+                                    sosStatus = mp.sosStatus
+                                )
+                                updatePeer(peer)
+                            } else {
+                                processReceivedPacket(mp, senderIp)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.d("MeshEngine", "UDP Listener on port $port ended: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.e("MeshEngine", "UDP Listener Error", e)
             }
         }
     }
@@ -142,14 +151,21 @@ class MeshEngine(private val context: Context) {
                         senderBattery = getBatteryPercentage(),
                         sosStatus = activeSosStatus
                     )
-                    val beaconJson = json.encodeToString(beacon).toByteArray(Charsets.UTF_8)
+                    val interopJsonStr = InteropProtocolAdapter.toInteropJson(beacon)
+                    val beaconBytes = interopJsonStr.toByteArray(Charsets.UTF_8)
                     val broadcastAddress = getBroadcastAddress() ?: InetAddress.getByName("255.255.255.255")
 
-                    val socket = DatagramSocket()
-                    socket.broadcast = true
-                    val packet = DatagramPacket(beaconJson, beaconJson.size, broadcastAddress, udpPort)
-                    socket.send(packet)
-                    socket.close()
+                    interopPorts.forEach { targetPort ->
+                        try {
+                            val socket = DatagramSocket()
+                            socket.broadcast = true
+                            val packet = DatagramPacket(beaconBytes, beaconBytes.size, broadcastAddress, targetPort)
+                            socket.send(packet)
+                            socket.close()
+                        } catch (e: Exception) {
+                            // Ignored per-port send exception
+                        }
+                    }
                 } catch (e: Exception) {
                     Log.e("MeshEngine", "UDP Beacon broadcast error", e)
                 }
@@ -180,9 +196,15 @@ class MeshEngine(private val context: Context) {
             socket.soTimeout = 15000
             val reader = BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.UTF_8))
             val line = reader.readLine() ?: return
-            val meshPacket = json.decodeFromString<MeshPacket>(line)
+            val meshPacket = try {
+                json.decodeFromString<MeshPacket>(line)
+            } catch (e: Exception) {
+                InteropProtocolAdapter.parseExternalPacket(line)
+            }
 
-            processReceivedPacket(meshPacket, socket.inetAddress.hostAddress)
+            if (meshPacket != null) {
+                processReceivedPacket(meshPacket, socket.inetAddress.hostAddress)
+            }
             socket.close()
         } catch (e: Exception) {
             Log.e("MeshEngine", "TCP Client handle error", e)
