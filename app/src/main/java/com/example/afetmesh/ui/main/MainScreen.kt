@@ -345,7 +345,10 @@ fun MainScreen(viewModel: MainScreenViewModel = viewModel()) {
                 )
                 4 -> RadarTabContent(
                     peers = peers.values.toList(),
-                    currentNodeId = viewModel.repository.meshEngine.nodeId
+                    currentNodeId = viewModel.repository.meshEngine.nodeId,
+                    onSendDirectMessage = { targetId, text ->
+                        viewModel.sendTextMessage(text, recipientId = targetId)
+                    }
                 )
             }
         }
@@ -964,8 +967,12 @@ fun VideoCallTabContent(
 @Composable
 fun RadarTabContent(
     peers: List<PeerNode>,
-    currentNodeId: String
+    currentNodeId: String,
+    onSendDirectMessage: (targetPeerId: String, text: String) -> Unit = { _, _ -> }
 ) {
+    var selectedPeerForDirectMsg by remember { mutableStateOf<PeerNode?>(null) }
+    var directMsgText by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -999,37 +1006,109 @@ fun RadarTabContent(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .padding(12.dp)
-                                .fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(12.dp)
-                                    .clip(CircleShape)
-                                    .background(if (peer.sosStatus != null) Color.Red else Color(0xFF4CAF50))
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(peer.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Text("ID: ${peer.id} | IP: ${peer.ipAddress}", fontSize = 11.sp, color = Color.Gray)
-                                if (peer.sosStatus != null) {
-                                    Text("🚨 SOS: ${peer.sosStatus}", fontWeight = FontWeight.Bold, color = Color.Red, fontSize = 12.sp)
+                        Column(Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(if (peer.sosStatus != null) Color.Red else Color(0xFF4CAF50))
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(peer.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                    Text("ID: ${peer.id} | IP: ${peer.ipAddress}", fontSize = 11.sp, color = Color.Gray)
+                                    if (peer.sosStatus != null) {
+                                        Text("🚨 SOS: ${peer.sosStatus}", fontWeight = FontWeight.Bold, color = Color.Red, fontSize = 12.sp)
+                                    }
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    if (peer.battery > 0) {
+                                        Text("Pil: %${peer.battery}", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                    }
+                                    Text("Hop: ${peer.hops}", fontSize = 10.sp, color = Color.Gray)
                                 }
                             }
-                            Column(horizontalAlignment = Alignment.End) {
-                                if (peer.battery > 0) {
-                                    Text("Pil: %${peer.battery}", fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                }
-                                Text("Hop: ${peer.hops}", fontSize = 10.sp, color = Color.Gray)
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = {
+                                    directMsgText = ""
+                                    selectedPeerForDirectMsg = peer
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("🔒 Doğrudan Özel Mesaj Gönder", fontSize = 12.sp)
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    selectedPeerForDirectMsg?.let { targetPeer ->
+        AlertDialog(
+            onDismissRequest = { selectedPeerForDirectMsg = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Doğrudan Özel Haberleşme", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column {
+                    Text("Hedef Cihaz: ${targetPeer.name}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("ID: ${targetPeer.id} | IP: ${targetPeer.ipAddress}", fontSize = 11.sp, color = Color.Gray)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Hızlı Mesaj Şablonları:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        val presets = listOf("Nasılsın? ❓", "Yardım lazım mı? 🆘", "Konumun neresi? 📍", "Güvendeyim 👍")
+                        items(presets) { preset ->
+                            SuggestionChip(
+                                onClick = { directMsgText = preset },
+                                label = { Text(preset, fontSize = 10.sp) }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = directMsgText,
+                        onValueChange = { directMsgText = it },
+                        placeholder = { Text("Özel mesajınızı yazın...") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (directMsgText.isNotBlank()) {
+                            onSendDirectMessage(targetPeer.id, directMsgText)
+                            selectedPeerForDirectMsg = null
+                        }
+                    }
+                ) {
+                    Text("Gönder")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedPeerForDirectMsg = null }) {
+                    Text("İptal")
+                }
+            }
+        )
     }
 }
 

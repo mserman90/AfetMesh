@@ -752,10 +752,10 @@ class AfetMeshDesktopApp:
     # --- 6. RADAR TAB ---
     def _build_radar_tab(self):
         f = self.tab_radar
-        lbl = tk.Label(f, text="BAĞLI ANDROID CİHAZLAR MESH RADARI", font=("Segoe UI", 12, "bold"), fg="#a6e3a1", bg="#1e1e2e")
+        lbl = tk.Label(f, text="BAĞLI CİHAZLAR MESH RADARI", font=("Segoe UI", 12, "bold"), fg="#a6e3a1", bg="#1e1e2e")
         lbl.pack(pady=10)
 
-        self.radar_tree = ttk.Treeview(f, columns=("ID", "Name", "IP", "Battery", "SOS"), show="headings", height=12)
+        self.radar_tree = ttk.Treeview(f, columns=("ID", "Name", "IP", "Battery", "SOS"), show="headings", height=10)
         self.radar_tree.heading("ID", text="Node ID")
         self.radar_tree.heading("Name", text="Cihaz Adı")
         self.radar_tree.heading("IP", text="IP Adresi")
@@ -768,7 +768,42 @@ class AfetMeshDesktopApp:
         self.radar_tree.column("Battery", width=80)
         self.radar_tree.column("SOS", width=180)
 
-        self.radar_tree.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
+        self.radar_tree.pack(fill=tk.BOTH, expand=True, padx=15, pady=5)
+        self.radar_tree.bind("<Double-1>", lambda event: self._send_direct_msg_to_selected_peer())
+
+        btn_direct_msg = tk.Button(
+            f,
+            text="🔒 Seçili Cihaza Doğrudan Özel Mesaj Gönder",
+            font=("Segoe UI", 10, "bold"),
+            bg="#89b4fa",
+            fg="#11111b",
+            command=self._send_direct_msg_to_selected_peer
+        )
+        btn_direct_msg.pack(pady=10)
+
+    def _send_direct_msg_to_selected_peer(self):
+        selected = self.radar_tree.selection()
+        if not selected:
+            messagebox.showwarning("Cihaz Seçilmedi", "Lütfen radardan mesaj göndermek istediğiniz bir cihazı seçin.")
+            return
+        item_vals = self.radar_tree.item(selected[0], 'values')
+        peer_id, peer_name = item_vals[0], item_vals[1]
+
+        msg_text = simpledialog.askstring(
+            "🔒 Doğrudan Özel Haberleşme",
+            f"[{peer_name}] ({peer_id}) cihazına gönderilecek özel mesajınız:"
+        )
+        if msg_text and msg_text.strip():
+            packet = MeshPacket(
+                packet_type="CHAT_TEXT",
+                payload=msg_text.strip(),
+                sender_id=self.engine.node_id,
+                sender_name=self.engine.device_name,
+                recipient_id=peer_id
+            )
+            self.engine.send_packet(packet)
+            self._append_chat(f"🔒 [Özel -> {peer_name}] {msg_text.strip()}")
+            messagebox.showinfo("Başarılı", f"🔒 Özel mesaj [{peer_name}] cihazına iletildi.")
 
     # --- Callbacks ---
     def _on_packet_received(self, packet):
