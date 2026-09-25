@@ -46,9 +46,12 @@ class AfetMeshRepository(private val context: Context) {
     val peers: StateFlow<Map<String, PeerNode>> = meshEngine.peers
     val activeSosAlerts: StateFlow<List<MeshPacket>> = meshEngine.activeSosAlerts
 
+    val uniqueDigitalId: String get() = "AFET-UUID-" + meshEngine.nodeId.replace("NODE_", "").uppercase()
+
     init {
         meshEngine.deviceName = _userName.value
         meshEngine.start()
+        AfetMeshBackgroundService.startService(context)
         locationHelper.startLocationUpdates { loc ->
             _currentLocation.value = loc
         }
@@ -155,6 +158,14 @@ class AfetMeshRepository(private val context: Context) {
         beaconManager.stopFlashlightSosStrobe()
     }
 
+    fun toggleWhistle() {
+        if (beaconManager.isWhistleActive) {
+            beaconManager.stopDigitalWhistle()
+        } else {
+            beaconManager.startDigitalWhistle()
+        }
+    }
+
     fun toggleSiren() {
         if (beaconManager.isSirenActive) {
             beaconManager.stopSirenAlert()
@@ -169,6 +180,16 @@ class AfetMeshRepository(private val context: Context) {
         } else {
             beaconManager.startFlashlightSosStrobe()
         }
+    }
+
+    fun playVoiceNote(base64Payload: String) {
+        voiceStreamManager.playVoiceNote(base64Payload)
+    }
+
+    fun deleteMessage(messageId: String) {
+        val list = _messages.value.toMutableList()
+        list.removeAll { it.id == messageId }
+        _messages.value = list
     }
 
     fun startPtt(recipientId: String = "*") {

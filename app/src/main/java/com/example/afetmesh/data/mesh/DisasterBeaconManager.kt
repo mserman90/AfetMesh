@@ -31,11 +31,76 @@ class DisasterBeaconManager(private val context: Context) {
         context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     }
 
+    private var whistleTrack: android.media.AudioTrack? = null
+    private var whistleJob: Job? = null
+
     var isSirenActive = false
         private set
 
     var isStrobeActive = false
         private set
+
+    var isWhistleActive = false
+        private set
+
+    fun startDigitalWhistle() {
+        if (isWhistleActive) return
+        isWhistleActive = true
+
+        whistleJob = scope.launch {
+            try {
+                val sampleRate = 44100
+                val freq = 3200.0 // 3.2 kHz High-pitched rescue whistle frequency
+                val buffSize = android.media.AudioTrack.getMinBufferSize(
+                    sampleRate,
+                    android.media.AudioFormat.CHANNEL_OUT_MONO,
+                    android.media.AudioFormat.ENCODING_PCM_16BIT
+                )
+                val buffer = ShortArray(buffSize)
+
+                @Suppress("DEPRECATION")
+                whistleTrack = android.media.AudioTrack(
+                    AudioManager.STREAM_ALARM,
+                    sampleRate,
+                    android.media.AudioFormat.CHANNEL_OUT_MONO,
+                    android.media.AudioFormat.ENCODING_PCM_16BIT,
+                    buffSize,
+                    android.media.AudioTrack.MODE_STREAM
+                )
+
+                whistleTrack?.play()
+
+                var angle = 0.0
+                while (isActive && isWhistleActive) {
+                    for (i in buffer.indices) {
+                        buffer[i] = (Math.sin(angle) * 32767).toInt().toShort()
+                        angle += 2.0 * Math.PI * freq / sampleRate
+                        if (angle > 2.0 * Math.PI) angle -= 2.0 * Math.PI
+                    }
+                    whistleTrack?.write(buffer, 0, buffer.size)
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun stopDigitalWhistle() {
+        isWhistleActive = false
+        whistleJob?.cancel()
+        whistleJob = null
+        try {
+            whistleTrack?.stop()
+            whistleTrack?.release()
+            whistleTrack = null
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     fun startSirenAlert() {
         if (isSirenActive) return
@@ -165,6 +230,7 @@ class DisasterBeaconManager(private val context: Context) {
     }
 
     fun release() {
+        stopDigitalWhistle()
         stopSirenAlert()
         stopFlashlightSosStrobe()
         scope.cancel()

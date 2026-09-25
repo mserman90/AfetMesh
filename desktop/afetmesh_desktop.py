@@ -273,6 +273,7 @@ class AfetMeshDesktopApp:
         self.root.configure(bg="#1e1e2e")
 
         self.siren_playing = False
+        self.whistle_playing = False
         self.is_recording_ptt = False
         self.is_webcam_streaming = False
 
@@ -397,8 +398,11 @@ class AfetMeshDesktopApp:
         siren_frame = tk.Frame(f, bg="#1e1e2e")
         siren_frame.pack(pady=15)
 
-        self.btn_siren = tk.Button(siren_frame, text="🔊 PC Alarm Sirenini Başlat", font=("Segoe UI", 11, "bold"), bg="#ef4444", fg="white", command=self._toggle_pc_siren)
-        self.btn_siren.pack(side=tk.LEFT, padx=10)
+        self.btn_siren = tk.Button(siren_frame, text="🔊 PC Alarm Sirenini Başlat", font=("Segoe UI", 10, "bold"), bg="#ef4444", fg="white", command=self._toggle_pc_siren)
+        self.btn_siren.pack(side=tk.LEFT, padx=5)
+
+        self.btn_whistle = tk.Button(siren_frame, text="🔊 PC Dijital Düdük (3.2 kHz)", font=("Segoe UI", 10, "bold"), bg="#fe640b", fg="white", command=self._toggle_pc_whistle)
+        self.btn_whistle.pack(side=tk.LEFT, padx=5)
 
         # Active SOS Feed
         sos_list_lbl = tk.Label(f, text="Ağdaki Aktif Acil SOS Çağrıları:", font=("Segoe UI", 11, "bold"), fg="#f38ba8", bg="#1e1e2e")
@@ -448,6 +452,22 @@ class AfetMeshDesktopApp:
             try:
                 winsound.Beep(2500, 400)
                 winsound.Beep(1500, 400)
+            except:
+                break
+
+    def _toggle_pc_whistle(self):
+        self.whistle_playing = not self.whistle_playing
+        if self.whistle_playing:
+            self.btn_whistle.config(text="🛑 PC Dijital Düdük Durdur", bg="#fab387", fg="#11111b")
+            threading.Thread(target=self._whistle_loop, daemon=True).start()
+        else:
+            self.btn_whistle.config(text="🔊 PC Dijital Düdük (3.2 kHz)", bg="#fe640b", fg="white")
+
+    def _whistle_loop(self):
+        while self.whistle_playing:
+            try:
+                winsound.Beep(3200, 450)
+                time.sleep(0.1)
             except:
                 break
 

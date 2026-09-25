@@ -32,6 +32,12 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     val isStrobeActive: Boolean
         get() = repository.beaconManager.isStrobeActive
 
+    val isWhistleActive: Boolean
+        get() = repository.beaconManager.isWhistleActive
+
+    val uniqueDigitalId: String
+        get() = repository.uniqueDigitalId
+
     val isVideoStreamActive: Boolean
         get() = repository.videoStreamManager.isStreamingVideo
 
@@ -55,6 +61,18 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     fun toggleStrobe() {
         repository.toggleStrobe()
+    }
+
+    fun toggleWhistle() {
+        repository.toggleWhistle()
+    }
+
+    fun playVoiceNote(base64Payload: String) {
+        repository.playVoiceNote(base64Payload)
+    }
+
+    fun deleteMessage(messageId: String) {
+        repository.deleteMessage(messageId)
     }
 
     fun startPtt(recipientId: String = "*") {

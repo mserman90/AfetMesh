@@ -158,6 +158,20 @@ class VoiceStreamManager(private val context: Context) {
         }
     }
 
+    fun playVoiceNote(base64Data: String) {
+        scope.launch {
+            try {
+                if (audioTrack == null || audioTrack?.state != AudioTrack.STATE_INITIALIZED) {
+                    initPlayer()
+                }
+                val pcmBytes = Base64.decode(base64Data, Base64.NO_WRAP)
+                audioTrack?.write(pcmBytes, 0, pcmBytes.size)
+            } catch (e: Exception) {
+                Log.e("VoiceStreamManager", "Error playing voice note", e)
+            }
+        }
+    }
+
     fun release() {
         stopPttStream()
         try {

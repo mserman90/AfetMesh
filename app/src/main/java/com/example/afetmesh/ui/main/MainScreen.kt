@@ -236,17 +236,25 @@ fun MainScreen(viewModel: MainScreenViewModel = viewModel()) {
                     isSirenActive = viewModel.isSirenActive,
                     onToggleSiren = { viewModel.toggleSiren() },
                     isStrobeActive = viewModel.isStrobeActive,
-                    onToggleStrobe = { viewModel.toggleStrobe() }
+                    onToggleStrobe = { viewModel.toggleStrobe() },
+                    isWhistleActive = viewModel.isWhistleActive,
+                    onToggleWhistle = { viewModel.toggleWhistle() },
+                    uniqueDigitalId = viewModel.uniqueDigitalId
                 )
                 1 -> TextChatTabContent(
                     messages = messages,
                     onSendMessage = { text -> viewModel.sendTextMessage(text) },
-                    onSendVoiceNote = { viewModel.sendVoiceNote() }
+                    onSendVoiceNote = { viewModel.sendVoiceNote() },
+                    onPlayVoiceNote = { payload -> viewModel.playVoiceNote(payload) },
+                    onDeleteMessage = { id -> viewModel.deleteMessage(id) }
                 )
                 2 -> VoicePttTabContent(
                     peersCount = peers.size,
+                    messages = messages.filter { it.type == PacketType.VOICE_NOTE },
                     onStartPtt = { viewModel.startPtt() },
-                    onStopPtt = { viewModel.stopPtt() }
+                    onStopPtt = { viewModel.stopPtt() },
+                    onPlayVoiceNote = { payload -> viewModel.playVoiceNote(payload) },
+                    onDeleteMessage = { id -> viewModel.deleteMessage(id) }
                 )
                 3 -> VideoCallTabContent(
                     incomingVideoBitmap = incomingVideoBitmap,
@@ -282,7 +290,10 @@ fun SosTabContent(
     isSirenActive: Boolean,
     onToggleSiren: () -> Unit,
     isStrobeActive: Boolean,
-    onToggleStrobe: () -> Unit
+    onToggleStrobe: () -> Unit,
+    isWhistleActive: Boolean,
+    onToggleWhistle: () -> Unit,
+    uniqueDigitalId: String
 ) {
     LazyColumn(
         modifier = Modifier
@@ -290,6 +301,28 @@ fun SosTabContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Unique Digital Identity Code (UUID) for Search & Rescue Identification
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.QrCode, contentDescription = "UUID", tint = Color(0xFF4CAF50))
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text("ARAMA-KURTARMA BENZERSİZ KİMLİK KODU", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                            Text(uniqueDigitalId, fontSize = 15.sp, fontWeight = FontWeight.Black, color = Color.White)
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text("⚡ Her Zaman Açık Arka Plan Otomatik Yardım: AKTİF (Batarya Dostu)", fontSize = 10.sp, color = Color(0xFF81C784))
+                }
+            }
+        }
+
         item {
             Card(
                 colors = CardDefaults.cardColors(
@@ -392,6 +425,20 @@ fun SosTabContent(
                 Column(Modifier.padding(16.dp)) {
                     Text("Arama-Kurtarma Yardım Araçları:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Spacer(Modifier.height(12.dp))
+
+                    // High-pitched Digital Whistle
+                    OutlinedButton(
+                        onClick = onToggleWhistle,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = if (isWhistleActive) ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFFF9800), contentColor = Color.White) else ButtonDefaults.outlinedButtonColors()
+                    ) {
+                        Icon(Icons.Default.VolumeUp, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (isWhistleActive) "🔊 DİJİTAL DÜDÜK DURDUR" else "🔊 YÜKSEK SESLİ DİJİTAL DÜDÜK (3.2 kHz)", fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -474,7 +521,9 @@ fun SosTabContent(
 fun TextChatTabContent(
     messages: List<MeshPacket>,
     onSendMessage: (String) -> Unit,
-    onSendVoiceNote: () -> Unit
+    onSendVoiceNote: () -> Unit,
+    onPlayVoiceNote: (String) -> Unit = {},
+    onDeleteMessage: (String) -> Unit = {}
 ) {
     var inputText by remember { mutableStateOf("") }
 
@@ -519,7 +568,7 @@ fun TextChatTabContent(
                     Surface(
                         color = if (isSelf) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.widthIn(max = 280.dp)
+                        modifier = Modifier.widthIn(max = 290.dp)
                     ) {
                         Column(Modifier.padding(10.dp)) {
                             Text(
@@ -530,10 +579,26 @@ fun TextChatTabContent(
                             )
                             Spacer(Modifier.height(2.dp))
                             if (msg.type == PacketType.VOICE_NOTE) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
                                     Icon(Icons.Default.GraphicEq, contentDescription = null, tint = Color(0xFFE65100))
                                     Spacer(Modifier.width(6.dp))
-                                    Text("Ses Kaydı (Off-Grid Voice)", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                    Text("Ses Kaydı", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                    Spacer(Modifier.weight(1f))
+                                    IconButton(
+                                        onClick = { onPlayVoiceNote(msg.payload) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(Icons.Default.PlayArrow, contentDescription = "Dinle", tint = Color(0xFF388E3C))
+                                    }
+                                    IconButton(
+                                        onClick = { onDeleteMessage(msg.id) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Sil", tint = Color.Gray)
+                                    }
                                 }
                             } else {
                                 Text(msg.payload, fontSize = 14.sp)
@@ -596,17 +661,19 @@ fun TextChatTabContent(
 @Composable
 fun VoicePttTabContent(
     peersCount: Int,
+    messages: List<MeshPacket> = emptyList(),
     onStartPtt: () -> Unit,
-    onStopPtt: () -> Unit
+    onStopPtt: () -> Unit,
+    onPlayVoiceNote: (String) -> Unit = {},
+    onDeleteMessage: (String) -> Unit = {}
 ) {
     var isPressingPtt by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             "PUSH-TO-TALK (BAS-KONUŞ)",
@@ -620,12 +687,12 @@ fun VoicePttTabContent(
             color = Color.Gray
         )
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(16.dp))
 
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(200.dp)
+                .size(150.dp)
                 .clip(CircleShape)
                 .background(if (isPressingPtt) Color(0xFFD32F2F) else MaterialTheme.colorScheme.primary)
                 .pointerInput(Unit) {
@@ -645,19 +712,19 @@ fun VoicePttTabContent(
                     Icons.Default.Mic,
                     contentDescription = "PTT",
                     tint = Color.White,
-                    modifier = Modifier.size(64.dp)
+                    modifier = Modifier.size(48.dp)
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     if (isPressingPtt) "KONUŞUN (CANLI)" else "BASILI TUTUN",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 12.sp
                 )
             }
         }
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(16.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -665,13 +732,72 @@ fun VoicePttTabContent(
         ) {
             Row(
                 modifier = Modifier
-                    .padding(16.dp)
+                    .padding(12.dp)
                     .fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Dinleyen Cihaz Sayısı:", fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                Text("$peersCount Cihaz", fontWeight = FontWeight.Bold, color = Color(0xFF388E3C))
+                Text("Dinleyen Cihaz Sayısı:", fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                Text("$peersCount Cihaz", fontWeight = FontWeight.Bold, color = Color(0xFF388E3C), fontSize = 12.sp)
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Sesli Telsiz Mesaj Geçmişi ve Yönetimi
+        Text(
+            "SESLİ TELSİZ MESAJ GEÇMİŞİ VE YÖNETİMİ (${messages.size}):",
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+            modifier = Modifier.align(Alignment.Start)
+        )
+        Spacer(Modifier.height(6.dp))
+
+        if (messages.isEmpty()) {
+            Text(
+                "Henüz gelen veya kaydedilen sesli telsiz mesajı yok.",
+                fontSize = 11.sp,
+                color = Color.Gray,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(messages.reversed()) { msg ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .padding(10.dp)
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.GraphicEq, contentDescription = null, tint = Color(0xFFE65100))
+                            Spacer(Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(msg.senderName, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Ses Mesajı | ${formatTime(msg.timestamp)}", fontSize = 10.sp, color = Color.Gray)
+                            }
+                            IconButton(
+                                onClick = { onPlayVoiceNote(msg.payload) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = "Dinle", tint = Color(0xFF388E3C))
+                            }
+                            IconButton(
+                                onClick = { onDeleteMessage(msg.id) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Sil", tint = Color.Gray)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
