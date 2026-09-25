@@ -451,21 +451,18 @@ class AfetMeshDesktopApp:
         self.tab_chat = tk.Frame(self.notebook, bg="#1e1e2e")
         self.tab_ptt = tk.Frame(self.notebook, bg="#1e1e2e")
         self.tab_video = tk.Frame(self.notebook, bg="#1e1e2e")
-        self.tab_map = tk.Frame(self.notebook, bg="#1e1e2e")
         self.tab_radar = tk.Frame(self.notebook, bg="#1e1e2e")
 
         self.notebook.add(self.tab_sos, text="🚨 ACİL SOS")
         self.notebook.add(self.tab_chat, text="💬 Yazılı Chat")
         self.notebook.add(self.tab_ptt, text="🎙️ Sesli (PTT Telsiz)")
         self.notebook.add(self.tab_video, text="📹 Görüntülü")
-        self.notebook.add(self.tab_map, text="🗺️ Afet Haritası & AFAD")
         self.notebook.add(self.tab_radar, text="📡 Mesh Radar")
 
         self._build_sos_tab()
         self._build_chat_tab()
         self._build_ptt_tab()
         self._build_video_tab()
-        self._build_map_tab()
         self._build_radar_tab()
 
     # --- 1. SOS TAB ---

@@ -287,12 +287,6 @@ fun MainScreen(viewModel: MainScreenViewModel = viewModel()) {
                 NavigationBarItem(
                     selected = selectedTab == 4,
                     onClick = { selectedTab = 4 },
-                    icon = { Icon(Icons.Default.Map, contentDescription = "Harita") },
-                    label = { Text("Harita") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 5,
-                    onClick = { selectedTab = 5 },
                     icon = {
                         BadgedBox(
                             badge = {
@@ -349,16 +343,7 @@ fun MainScreen(viewModel: MainScreenViewModel = viewModel()) {
                     onStartStream = { lifecycleOwner -> viewModel.startVideoStream(lifecycleOwner) },
                     onStopStream = { viewModel.stopVideoStream() }
                 )
-                4 -> com.example.afetmesh.ui.map.OfflineMapScreen(
-                    currentLocation = currentLocation,
-                    sosAlerts = activeSosAlerts,
-                    peers = peers.values.toList(),
-                    onAddCustomPoint = { pt ->
-                        viewModel.sendTextMessage("📌 YENİ AFET NOKTASI: ${pt.name} (${pt.description})")
-                    },
-                    eDevletAfadManager = viewModel.repository.eDevletAfadManager
-                )
-                5 -> RadarTabContent(
+                4 -> RadarTabContent(
                     peers = peers.values.toList(),
                     currentNodeId = viewModel.repository.meshEngine.nodeId
                 )
