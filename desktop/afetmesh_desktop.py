@@ -191,9 +191,32 @@ class DesktopMeshEngine:
         self.received_packet_ids.add(packet.id)
         raw_json = json.dumps(packet.to_dict()) + "\n"
 
+        # Direct TCP unicast or broadcast
         for peer_id, peer in list(self.peers.items()):
             if packet.recipientId == "*" or packet.recipientId == peer_id:
                 threading.Thread(target=self._send_tcp_raw, args=(peer['ip'], peer['port'], raw_json), daemon=True).start()
+
+        # Multi-hop flooding to intermediate nodes if target is not direct
+        if packet.recipientId != "*" and packet.recipientId not in self.peers:
+            for peer_id, peer in list(self.peers.items()):
+                threading.Thread(target=self._send_tcp_raw, args=(peer['ip'], peer['port'], raw_json), daemon=True).start()
+
+        # Subnet UDP Broadcast for off-grid discovery
+        threading.Thread(target=self._send_udp_broadcast, args=(raw_json,), daemon=True).start()
+
+    def _send_udp_broadcast(self, raw_json):
+        try:
+            data = raw_json.strip().encode('utf-8')
+            for port in [UDP_PORT, 8888, 8000, 9999]:
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                    sock.sendto(data, ('<broadcast>', port))
+                    sock.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     def _send_tcp_raw(self, ip, port, raw_json):
         try:
@@ -223,15 +246,20 @@ class DesktopMeshEngine:
         if self.on_packet_received:
             self.on_packet_received(packet)
 
-        # Briar Mesh Relay
+        # Briar & Meshenger Multi-Hop Store & Forward Relay
         if packet.ttl > 1:
-            relayed = packet
-            relayed.ttl -= 1
-            relayed.hops += 1
-            raw_json = json.dumps(relayed.to_dict()) + "\n"
+            relayed_dict = packet.to_dict()
+            relayed_dict['ttl'] -= 1
+            relayed_dict['hops'] += 1
+            raw_json = json.dumps(relayed_dict) + "\n"
+
+            # 1. TCP relay to direct peers except original sender
             for p_id, peer in list(self.peers.items()):
                 if peer['ip'] != sender_ip:
                     threading.Thread(target=self._send_tcp_raw, args=(peer['ip'], peer['port'], raw_json), daemon=True).start()
+
+            # 2. Subnet UDP Broadcast relay
+            threading.Thread(target=self._send_udp_broadcast, args=(raw_json,), daemon=True).start()
 
     def _update_peer(self, peer_id, name, ip, battery, sos_status):
         self.peers[peer_id] = {

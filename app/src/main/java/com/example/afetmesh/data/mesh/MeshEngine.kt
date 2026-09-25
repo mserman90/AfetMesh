@@ -220,8 +220,14 @@ class MeshEngine(private val context: Context) {
             if (packet.recipientId != "*") {
                 // Direct unicast
                 val peer = _peers.value[packet.recipientId]
-                if (peer != null) {
+                if (peer != null && peer.isDirect) {
                     sendTcpRaw(peer.ipAddress, peer.port, serialized)
+                }
+                // Flood intermediate nodes if recipient is multi-hop
+                _peers.value.values.forEach { p ->
+                    if (p.isDirect && p.id != packet.recipientId) {
+                        sendTcpRaw(p.ipAddress, p.port, serialized)
+                    }
                 }
             } else {
                 // Broadcast to all known direct peers
@@ -231,6 +237,28 @@ class MeshEngine(private val context: Context) {
                     }
                 }
             }
+            // Send via UDP broadcast for subnet multi-hop discovery
+            sendUdpBroadcast(serialized)
+        }
+    }
+
+    private fun sendUdpBroadcast(rawJson: String) {
+        try {
+            val bytes = rawJson.toByteArray(Charsets.UTF_8)
+            val broadcastAddress = getBroadcastAddress() ?: InetAddress.getByName("255.255.255.255")
+            interopPorts.forEach { targetPort ->
+                try {
+                    val socket = DatagramSocket()
+                    socket.broadcast = true
+                    val packet = DatagramPacket(bytes, bytes.size, broadcastAddress, targetPort)
+                    socket.send(packet)
+                    socket.close()
+                } catch (e: Exception) {
+                    // Ignore per-port send errors
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MeshEngine", "UDP Broadcast send error", e)
         }
     }
 
@@ -281,17 +309,19 @@ class MeshEngine(private val context: Context) {
 
         _incomingPackets.tryEmit(packet)
 
-        // BRIAR MESH STORE & FORWARD RELAY
+        // BRIAR & MESHENGER MULTI-HOP STORE & FORWARD RELAY
         if (packet.ttl > 1) {
             val relayedPacket = packet.copy(ttl = packet.ttl - 1, hops = packet.hops + 1)
             scope.launch {
                 val serialized = json.encodeToString(relayedPacket)
+                // 1. Relay over TCP to all direct peers except original sender
                 _peers.value.values.forEach { peer ->
-                    // Relay to all peers except original sender
                     if (peer.ipAddress != senderIp) {
                         sendTcpRaw(peer.ipAddress, peer.port, serialized)
                     }
                 }
+                // 2. Relay over UDP broadcast to reach subnet / Wi-Fi Direct devices
+                sendUdpBroadcast(serialized)
             }
         }
     }
