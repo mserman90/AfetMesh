@@ -22,6 +22,16 @@ class AfetMeshRepository(private val context: Context) {
     )
     val userName: StateFlow<String> = _userName.asStateFlow()
 
+    private val _isKvkkAccepted = MutableStateFlow(
+        prefs.getBoolean("is_kvkk_accepted", false)
+    )
+    val isKvkkAccepted: StateFlow<Boolean> = _isKvkkAccepted.asStateFlow()
+
+    fun setKvkkAccepted(accepted: Boolean) {
+        _isKvkkAccepted.value = accepted
+        prefs.edit().putBoolean("is_kvkk_accepted", accepted).putLong("kvkk_timestamp", System.currentTimeMillis()).apply()
+    }
+
     val meshEngine = MeshEngine(context)
     val beaconManager = DisasterBeaconManager(context)
     val voiceStreamManager = VoiceStreamManager(context)

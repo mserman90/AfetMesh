@@ -47,10 +47,94 @@ fun MainScreen(viewModel: MainScreenViewModel = viewModel()) {
     val activeSosStatus by viewModel.activeSosStatus.collectAsState()
     val incomingVideoBitmap by viewModel.incomingVideoBitmap.collectAsState()
     val userName by viewModel.userName.collectAsState()
+    val isKvkkAccepted by viewModel.isKvkkAccepted.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var showNameDialog by remember { mutableStateOf(false) }
+    var showKvkkInfoDialog by remember { mutableStateOf(false) }
     var tempNameInput by remember(userName) { mutableStateOf(userName) }
+
+    // Mandatory KVKK Approval Dialog on initial launch
+    if (!isKvkkAccepted || showKvkkInfoDialog) {
+        var isChecked by remember { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { if (isKvkkAccepted) showKvkkInfoDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF1E88E5))
+                    Spacer(Modifier.width(8.dp))
+                    Text("KVKK Aydınlatma & Rıza Beyanı", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 350.dp)
+                ) {
+                    Text(
+                        "6698 Sayılı Kişisel Verilerin Korunması Kanunu (KVKK) Bilgilendirmesi:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        LazyColumn(Modifier.padding(10.dp)) {
+                            item {
+                                Text(
+                                    "AfetMesh uygulaması, afet ve acil durumlarda GSM ve internet bağlantısı olmaksızın arama-kurtarma ve hayati iletişimi sağlamak amacıyla kişisel verilerinizi işlemektedir.\n\n" +
+                                            "1. İŞLENEN VERİLER: Kullanıcı Adı/Rumuz, Yaklaşık GPS Konum Bilgisi (Toplanma alanı mesafesi ve SOS tespiti için), Cihaz Benzersiz Kimlik Kodu (UUID) ve Mesaj Metinleri.\n\n" +
+                                            "2. İŞLEME AMACI: Doğal afet anında konumunuzun ve yardım çağrılarınızın yakındaki arama-kurtarma ekiplerine ve P2P/Mesh cihazlara iletilmesi.\n\n" +
+                                            "3. VERİ AKTARIMI: Verileriniz herhangi bir merkezi sunucuda saklanmaz; yalnızca kapsama alanındaki yerel cihazlara güvenli doğrudan sinyal olarak yayınlanır.\n\n" +
+                                            "4. HAKLARINIZ: KVKK Madde 11 uyarınca dilediğiniz zaman rızanızı geri çekebilir veya verilerinizin işlenme durumunu sorgulayabilirsiniz.",
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Checkbox(
+                            checked = isChecked || isKvkkAccepted,
+                            onCheckedChange = { isChecked = it },
+                            enabled = !isKvkkAccepted
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            "KVKK Aydınlatma Metnini okudum. Afet anında konumumun ve acil SOS durumumun yerel mesh ağıyla paylaşılmasını kabul ediyorum.",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 13.sp
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.acceptKvkk()
+                        showKvkkInfoDialog = false
+                    },
+                    enabled = isChecked || isKvkkAccepted,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                ) {
+                    Text(if (isKvkkAccepted) "Kapat" else "OKUDUM VE KABUL EDİYORUM", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = null
+        )
+    }
 
     if (showNameDialog) {
         AlertDialog(
@@ -137,6 +221,9 @@ fun MainScreen(viewModel: MainScreenViewModel = viewModel()) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showKvkkInfoDialog = true }) {
+                        Icon(Icons.Default.Security, contentDescription = "KVKK Aydınlatma", tint = Color(0xFF1E88E5))
+                    }
                     currentLocation?.let { loc ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,

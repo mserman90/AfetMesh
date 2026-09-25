@@ -281,7 +281,7 @@ class AfetMeshDesktopApp:
         self.sos_alerts = []
 
         self.profile_path = os.path.join(os.path.expanduser("~"), ".afetmesh_pc_profile.json")
-        saved_name = self._load_saved_user_name()
+        saved_name, self.is_kvkk_accepted = self._load_saved_profile()
 
         self.engine = DesktopMeshEngine(
             on_packet_received=self._on_packet_received,
@@ -295,22 +295,89 @@ class AfetMeshDesktopApp:
         self._setup_ui()
         self.engine.start()
 
-    def _load_saved_user_name(self):
+        if not self.is_kvkk_accepted:
+            self.root.after(300, lambda: self._show_kvkk_dialog(mandatory=True))
+
+    def _load_saved_profile(self):
         try:
             if os.path.exists(self.profile_path):
                 with open(self.profile_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    return data.get("user_name")
+                    return data.get("user_name"), data.get("is_kvkk_accepted", False)
         except:
             pass
-        return None
+        return None, False
 
-    def _save_user_name(self, name):
+    def _save_profile(self, name=None, kvkk_accepted=None):
         try:
+            data = {}
+            if os.path.exists(self.profile_path):
+                with open(self.profile_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            if name is not None:
+                data["user_name"] = name
+            if kvkk_accepted is not None:
+                data["is_kvkk_accepted"] = kvkk_accepted
+                data["kvkk_timestamp"] = int(time.time())
             with open(self.profile_path, "w", encoding="utf-8") as f:
-                json.dump({"user_name": name}, f, ensure_ascii=False)
+                json.dump(data, f, ensure_ascii=False)
         except Exception as e:
             print("Failed to save profile:", e)
+
+    def _show_kvkk_dialog(self, mandatory=False):
+        top = tk.Toplevel(self.root)
+        top.title("KVKK Aydınlatma & Açık Rıza Beyanı")
+        top.geometry("620x480")
+        top.configure(bg="#1e1e2e")
+        top.transient(self.root)
+        top.grab_set()
+
+        lbl_title = tk.Label(top, text="🔒 6698 Sayılı KVKK Aydınlatma Metni", font=("Segoe UI", 12, "bold"), fg="#89b4fa", bg="#1e1e2e")
+        lbl_title.pack(pady=10)
+
+        txt_frame = tk.Frame(top, bg="#181825")
+        txt_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=5)
+
+        txt = tk.Text(txt_frame, bg="#181825", fg="#cdd6f4", font=("Segoe UI", 9), wrap=tk.WORD)
+        txt.pack(fill=tk.BOTH, expand=True, side=tk.LEFT, padx=5, pady=5)
+        
+        scroll = ttk.Scrollbar(txt_frame, command=txt.yview)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        txt.config(yscrollcommand=scroll.set)
+
+        notice_text = (
+            "AfetMesh Masaüstü Uygulaması KVKK Aydınlatma Metni:\n\n"
+            "1. İŞLENEN VERİLER: Kullanıcı Rumuzu/Adı, Cihaz Kimlik Kodu (UUID), Acil Durum SOS Bildirimleri ve Mesajlar.\n\n"
+            "2. İŞLEME AMACI: Doğal afet anlarında GSM veya internet altyapısı kesildiğinde yerel P2P/Mesh ağı üzerinden yardım çağrılarının iletilmesi.\n\n"
+            "3. VERİ GÜVENLİĞİ: Verileriniz herhangi bir merkezi sunucuda saklanmaz; yalnızca kapsama alanındaki doğrudan bağlı cihazlara yerel sinyal olarak iletilir.\n\n"
+            "4. HAKLARINIZ: KVKK Madde 11 uyarınca dilediğiniz zaman rızanızı silebilir veya profilinizi düzenleyebilirsiniz."
+        )
+        txt.insert(tk.END, notice_text)
+        txt.config(state=tk.DISABLED)
+
+        var_check = tk.BooleanVar(value=self.is_kvkk_accepted)
+
+        def on_accept():
+            if mandatory and not var_check.get():
+                messagebox.showwarning("KVKK Onayı", "Uygulamayı kullanabilmek için lütfen KVKK Aydınlatma Metnini onaylayın.")
+                return
+            self.is_kvkk_accepted = True
+            self._save_profile(kvkk_accepted=True)
+            top.destroy()
+
+        chk = tk.Checkbutton(
+            top,
+            text="KVKK Aydınlatma Metnini okudum. Afet anında bildirimlerimin mesh ağıyla paylaşılmasını onaylıyorum.",
+            variable=var_check,
+            font=("Segoe UI", 9),
+            fg="#a6e3a1",
+            bg="#1e1e2e",
+            selectcolor="#1e1e2e"
+        )
+        chk.pack(pady=10)
+
+        btn_confirm = tk.Button(top, text="OKUDUM VE KABUL EDİYORUM", font=("Segoe UI", 10, "bold"), bg="#a6e3a1", fg="#11111b", command=on_accept)
+        btn_confirm.pack(pady=(0, 15))
 
     def _setup_ui(self):
         # Top Header Bar
@@ -325,6 +392,9 @@ class AfetMeshDesktopApp:
 
         edit_btn = tk.Button(header, text="✏️ İsim Düzenle", font=("Segoe UI", 9, "bold"), bg="#313244", fg="#cdd6f4", command=self._edit_user_name)
         edit_btn.pack(side=tk.LEFT, padx=5)
+
+        kvkk_btn = tk.Button(header, text="🔒 KVKK Metni", font=("Segoe UI", 9, "bold"), bg="#313244", fg="#89b4fa", command=lambda: self._show_kvkk_dialog(mandatory=False))
+        kvkk_btn.pack(side=tk.LEFT, padx=5)
 
         self.status_lbl = tk.Label(header, text=f"ID: {self.engine.node_id} | Bağlı Cihaz: 0", font=("Segoe UI", 10), fg="#a6adc8", bg="#11111b")
         self.status_lbl.pack(side=tk.RIGHT, padx=15)

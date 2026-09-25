@@ -21,9 +21,14 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     val activeSosStatus: StateFlow<String?> = repository.activeSosStatus
     val incomingVideoBitmap: StateFlow<Bitmap?> = repository.incomingVideoBitmap
     val userName: StateFlow<String> = repository.userName
+    val isKvkkAccepted: StateFlow<Boolean> = repository.isKvkkAccepted
 
     fun setUserName(name: String) {
         repository.setUserName(name)
+    }
+
+    fun acceptKvkk() {
+        repository.setKvkkAccepted(true)
     }
 
     val isSirenActive: Boolean
