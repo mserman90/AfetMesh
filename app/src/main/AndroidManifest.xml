@@ -36,6 +36,9 @@
 
     <!-- Background Service for Always-on SOS -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:allowBackup="true"
@@ -56,6 +59,7 @@
 
         <service
             android:name=".data.mesh.AfetMeshBackgroundService"
+            android:foregroundServiceType="connectedDevice|location"
             android:exported="false" />
     </application>
 
