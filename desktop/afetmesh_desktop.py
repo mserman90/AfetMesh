@@ -48,29 +48,69 @@ class MeshPacket:
         self.sosStatus = sos_status
 
     def to_dict(self):
+        text_val = str(self.payload) if self.payload is not None else ""
+        sos_val = self.sosStatus or ""
+        sender_id_val = self.senderId or ""
+        sender_name_val = self.senderName or "Diğer Afet Cihazı"
         return {
             "id": self.id,
-            "senderId": self.senderId,
-            "senderName": self.senderName,
+            "packet_id": self.id,
+            "msg_id": self.id,
+            "senderId": sender_id_val,
+            "sender_id": sender_id_val,
+            "userId": sender_id_val,
+            "user_id": sender_id_val,
+            "device_id": sender_id_val,
+            "author_id": sender_id_val,
+            "senderName": sender_name_val,
+            "sender_name": sender_name_val,
+            "userName": sender_name_val,
+            "name": sender_name_val,
+            "nick": sender_name_val,
+            "author": sender_name_val,
+            "user": sender_name_val,
+            "sender": sender_name_val,
             "recipientId": self.recipientId,
+            "recipient_id": self.recipientId,
+            "to": self.recipientId,
+            "target": self.recipientId,
             "type": self.type,
-            "payload": self.payload,
+            "packet_type": self.type,
+            "msg_type": self.type,
+            "kind": self.type,
+            "event": self.type,
+            "payload": text_val,
+            "message": text_val,
+            "msg": text_val,
+            "text": text_val,
+            "body": text_val,
+            "content": text_val,
             "timestamp": self.timestamp,
+            "time": self.timestamp,
             "ttl": self.ttl,
             "hops": self.hops,
             "senderBattery": self.senderBattery,
+            "battery": self.senderBattery,
             "latitude": self.latitude,
+            "lat": self.latitude,
             "longitude": self.longitude,
-            "sosStatus": self.sosStatus
+            "lng": self.longitude,
+            "lon": self.longitude,
+            "sosStatus": sos_val,
+            "sos_status": sos_val,
+            "status": sos_val,
+            "emergency_status": sos_val,
+            "alarm": sos_val,
+            "emergency": sos_val
         }
 
     @staticmethod
     def from_dict(d):
-        sender_id = d.get("senderId") or d.get("sender_id") or d.get("userId") or d.get("user_id") or d.get("device_id") or "EXT_PC_" + str(uuid.uuid4())[:6]
-        sender_name = d.get("senderName") or d.get("sender_name") or d.get("userName") or d.get("name") or "Diğer Afet Cihazı"
-        payload = d.get("payload") or d.get("message") or d.get("msg") or d.get("text") or ""
-        sos_status = d.get("sosStatus") or d.get("sos_status") or d.get("status")
-        packet_type = d.get("type") or d.get("packet_type") or ("EMERGENCY_SOS" if sos_status else "CHAT_TEXT")
+        sender_id = d.get("senderId") or d.get("sender_id") or d.get("userId") or d.get("user_id") or d.get("device_id") or d.get("author_id") or d.get("node_id") or d.get("public_key") or d.get("mac") or d.get("from") or "EXT_PC_" + str(uuid.uuid4())[:6]
+        sender_name = d.get("senderName") or d.get("sender_name") or d.get("userName") or d.get("user_name") or d.get("name") or d.get("nick") or d.get("nickname") or d.get("author") or d.get("user") or d.get("sender") or "Diğer Afet Cihazı"
+        payload = d.get("payload") or d.get("message") or d.get("msg") or d.get("text") or d.get("body") or d.get("content") or d.get("data") or ""
+        sos_status = d.get("sosStatus") or d.get("sos_status") or d.get("status") or d.get("emergency_status") or d.get("emergency") or d.get("alarm")
+        packet_type = d.get("type") or d.get("packet_type") or d.get("msg_type") or d.get("kind") or d.get("event") or ("EMERGENCY_SOS" if sos_status else "CHAT_TEXT")
         lat = d.get("latitude") if d.get("latitude") is not None else d.get("lat")
         lon = d.get("longitude") if d.get("longitude") is not None else (d.get("lng") or d.get("lon"))
 
@@ -79,7 +119,7 @@ class MeshPacket:
             payload=payload,
             sender_id=sender_id,
             sender_name=sender_name,
-            recipient_id=d.get("recipientId") or d.get("recipient_id") or "*",
+            recipient_id=d.get("recipientId") or d.get("recipient_id") or d.get("to") or d.get("destination") or d.get("target") or "*",
             sos_status=sos_status,
             battery=d.get("senderBattery") or d.get("battery", -1),
             lat=lat,
@@ -103,22 +143,24 @@ class DesktopMeshEngine:
         self.on_video_frame = on_video_frame
         self.on_sos_alert = on_sos_alert
 
-        self.udp_socket = None
+        self.udp_sockets = []
         self.tcp_socket = None
+        self.interop_ports = [8888, 8889, 2342, 5353, 8000, 9999]
 
     def start(self):
         self.is_running = True
-        threading.Thread(target=self._udp_listener, daemon=True).start()
+        for port in self.interop_ports:
+            threading.Thread(target=self._udp_listener_port, args=(port,), daemon=True).start()
         threading.Thread(target=self._udp_broadcaster, daemon=True).start()
         threading.Thread(target=self._tcp_server, daemon=True).start()
         threading.Thread(target=self._peer_cleanup_loop, daemon=True).start()
 
-    def _udp_listener(self):
+    def _udp_listener_port(self, port):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(('', UDP_PORT))
-            self.udp_socket = sock
+            sock.bind(('', port))
+            self.udp_sockets.append(sock)
 
             while self.is_running:
                 data, addr = sock.recvfrom(65535)
@@ -131,10 +173,12 @@ class DesktopMeshEngine:
                     packet = MeshPacket.from_dict(d)
                     if packet.type == "DISCOVERY_BEACON":
                         self._update_peer(packet.senderId, packet.senderName, sender_ip, packet.senderBattery, packet.sosStatus)
+                    else:
+                        self._process_packet(packet, sender_ip)
                 except Exception as e:
                     pass
         except Exception as e:
-            print("UDP Listener error:", e)
+            pass
 
     def _udp_broadcaster(self):
         while self.is_running:
@@ -147,10 +191,14 @@ class DesktopMeshEngine:
                     sos_status=self.active_sos_status
                 )
                 data = json.dumps(beacon.to_dict()).encode('utf-8')
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                sock.sendto(data, ('<broadcast>', UDP_PORT))
-                sock.close()
+                for port in self.interop_ports:
+                    try:
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                        sock.sendto(data, ('<broadcast>', port))
+                        sock.close()
+                    except Exception:
+                        pass
             except Exception as e:
                 pass
             time.sleep(3)
@@ -207,7 +255,7 @@ class DesktopMeshEngine:
     def _send_udp_broadcast(self, raw_json):
         try:
             data = raw_json.strip().encode('utf-8')
-            for port in [UDP_PORT, 8888, 8000, 9999]:
+            for port in self.interop_ports:
                 try:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)

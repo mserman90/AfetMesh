@@ -86,7 +86,7 @@ class MeshEngine(private val context: Context) {
         startPeerCleanupLoop()
     }
 
-    private val interopPorts = listOf(8888, 8889, 8000, 9999)
+    private val interopPorts = listOf(8888, 8889, 2342, 5353, 8000, 9999)
 
     private fun startUdpBeaconListener() {
         interopPorts.forEach { port ->
