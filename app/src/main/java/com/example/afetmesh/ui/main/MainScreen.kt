@@ -260,7 +260,8 @@ fun MainScreen(viewModel: MainScreenViewModel = viewModel()) {
                     peers = peers.values.toList(),
                     onAddCustomPoint = { pt ->
                         viewModel.sendTextMessage("📌 YENİ AFET NOKTASI: ${pt.name} (${pt.description})")
-                    }
+                    },
+                    eDevletAfadManager = viewModel.repository.eDevletAfadManager
                 )
                 5 -> RadarTabContent(
                     peers = peers.values.toList(),

@@ -6,6 +6,7 @@ import socket
 import threading
 import uuid
 import base64
+import webbrowser
 import numpy as np
 import winsound
 from io import BytesIO
@@ -343,18 +344,21 @@ class AfetMeshDesktopApp:
         self.tab_chat = tk.Frame(self.notebook, bg="#1e1e2e")
         self.tab_ptt = tk.Frame(self.notebook, bg="#1e1e2e")
         self.tab_video = tk.Frame(self.notebook, bg="#1e1e2e")
+        self.tab_map = tk.Frame(self.notebook, bg="#1e1e2e")
         self.tab_radar = tk.Frame(self.notebook, bg="#1e1e2e")
 
         self.notebook.add(self.tab_sos, text="🚨 ACİL SOS")
         self.notebook.add(self.tab_chat, text="💬 Yazılı Chat")
         self.notebook.add(self.tab_ptt, text="🎙️ Sesli (PTT Telsiz)")
         self.notebook.add(self.tab_video, text="📹 Görüntülü")
+        self.notebook.add(self.tab_map, text="🗺️ Afet Haritası & AFAD")
         self.notebook.add(self.tab_radar, text="📡 Mesh Radar")
 
         self._build_sos_tab()
         self._build_chat_tab()
         self._build_ptt_tab()
         self._build_video_tab()
+        self._build_map_tab()
         self._build_radar_tab()
 
     # --- 1. SOS TAB ---
@@ -572,7 +576,57 @@ class AfetMeshDesktopApp:
             time.sleep(0.1) # 10 FPS
         cap.release()
 
-    # --- 5. RADAR TAB ---
+    # --- 5. AFET HARİTASI & AFAD TAB ---
+    def _build_map_tab(self):
+        f = self.tab_map
+        lbl = tk.Label(f, text="🗺️ ÇEVRİMDİŞİ AFET HARİTASI & e-DEVLET AFAD TOPLANMA ALANLARI", font=("Segoe UI", 12, "bold"), fg="#a6e3a1", bg="#1e1e2e")
+        lbl.pack(pady=10)
+
+        # e-Devlet AFAD Direct Link Banner
+        edevlet_frame = tk.Frame(f, bg="#11111b", padx=10, pady=8)
+        edevlet_frame.pack(fill=tk.X, padx=15, pady=5)
+
+        banner_lbl = tk.Label(edevlet_frame, text="✅ Kaynak: https://www.turkiye.gov.tr/afet-ve-acil-durum-yonetimi-acil-toplanma-alani-sorgulama", font=("Segoe UI", 9, "bold"), fg="#a6e3a1", bg="#11111b")
+        banner_lbl.pack(side=tk.LEFT, padx=5)
+
+        btn_open_edevlet = tk.Button(
+            edevlet_frame,
+            text="🌐 e-Devlet'te Acil Toplanma Alanı Sorgula",
+            font=("Segoe UI", 9, "bold"),
+            bg="#d32f2f",
+            fg="white",
+            command=lambda: webbrowser.open("https://www.turkiye.gov.tr/afet-ve-acil-durum-yonetimi-acil-toplanma-alani-sorgulama")
+        )
+        btn_open_edevlet.pack(side=tk.RIGHT, padx=5)
+
+        # AFAD Preloaded & Local Cached Assembly Areas List
+        self.map_tree = ttk.Treeview(f, columns=("Kod", "Ad", "Tur", "Kaynak", "Aciklama"), show="headings", height=10)
+        self.map_tree.heading("Kod", text="ID / Kod")
+        self.map_tree.heading("Ad", text="Toplanma / Yardım Noktası Adı")
+        self.map_tree.heading("Tur", text="Tür")
+        self.map_tree.heading("Kaynak", text="Veri Kaynağı")
+        self.map_tree.heading("Aciklama", text="Açıklama & Detay")
+
+        self.map_tree.column("Kod", width=90)
+        self.map_tree.column("Ad", width=220)
+        self.map_tree.column("Tur", width=110)
+        self.map_tree.column("Kaynak", width=120)
+        self.map_tree.column("Aciklama", width=280)
+
+        self.map_tree.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
+
+        # Preloaded Points Data
+        preloaded = [
+            ("AFAD-34-01", "Fatih Parkı AFAD Acil Toplanma Alanı", "Toplanma Alanı", "e-Devlet AFAD", "e-Devlet Onaylı AFAD Deprem Toplanma Parkı"),
+            ("AFAD-34-02", "Gülhane Parkı Açık Güvenli Bölge", "Toplanma Alanı", "e-Devlet AFAD", "AFAD İkincil Güvenli Açık Bölge"),
+            ("AFAD-34-03", "Yenikapı Etkinlik Alanı Ana Deprem Kriz Merkezi", "Toplanma Alanı", "e-Devlet AFAD", "AFAD Bölgesel Çadır Kent ve Lojistik Depo"),
+            ("AFAD-MED-1", "Kızılay Sahra Hastanesi & Tıbbi Müdahale", "Sahra Hastanesi", "AFAD / Kızılay", "Kızılay Acil Sağlık ve Ambulans İrtibat Noktası"),
+            ("AFAD-WAT-1", "Merkez İSKİ Su Tankeri & Aşevi Dağıtım Noktası", "Temiz Su / Gıda", "e-Devlet AFAD", "Aşevi, İçme Suyu ve Mobil Jeneratör Noktası")
+        ]
+        for item in preloaded:
+            self.map_tree.insert("", tk.END, values=item)
+
+    # --- 6. RADAR TAB ---
     def _build_radar_tab(self):
         f = self.tab_radar
         lbl = tk.Label(f, text="BAĞLI ANDROID CİHAZLAR MESH RADARI", font=("Segoe UI", 12, "bold"), fg="#a6e3a1", bg="#1e1e2e")

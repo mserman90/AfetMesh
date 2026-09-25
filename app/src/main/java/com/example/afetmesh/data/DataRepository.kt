@@ -27,6 +27,7 @@ class AfetMeshRepository(private val context: Context) {
     val voiceStreamManager = VoiceStreamManager(context)
     val videoStreamManager = VideoStreamManager(context)
     val locationHelper = LocationHelper(context)
+    val eDevletAfadManager = EDevletAfadManager(context)
 
     private val scope = CoroutineScope(Dispatchers.Main)
 

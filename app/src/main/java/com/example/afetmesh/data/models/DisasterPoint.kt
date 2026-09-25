@@ -18,42 +18,64 @@ data class DisasterPoint(
     val latitude: Double,
     val longitude: Double,
     val description: String = "",
+    val source: String = "AFAD / e-Devlet",
+    val isOfficial: Boolean = true,
     val timestamp: Long = System.currentTimeMillis()
 )
 
 object DefaultDisasterPoints {
+    const val EDEVLET_AFAD_URL = "https://www.turkiye.gov.tr/afet-ve-acil-durum-yonetimi-acil-toplanma-alani-sorgulama"
+
     val PRELOADED = listOf(
         DisasterPoint(
-            id = "DEF_1",
-            name = "Merkez Afet Toplanma Alanı & Çadır Kent",
+            id = "AFAD_1",
+            name = "Fatih Parkı AFAD Acil Toplanma Alanı",
             type = PointType.ASSEMBLY_AREA,
             latitude = 41.0082,
             longitude = 28.9784,
-            description = "AFAD Ana Kriz Masası, Çadır Kent ve İnsani Yardım Dağıtımı"
+            description = "e-Devlet Onaylı AFAD Acil Toplanma Alanı (KOD: AFAD-34-01)",
+            source = "e-Devlet AFAD",
+            isOfficial = true
         ),
         DisasterPoint(
-            id = "DEF_2",
-            name = "Sahra Hastanesi & İlk Yardım Çadırı",
+            id = "AFAD_2",
+            name = "Kızılay Sahra Hastanesi & Tıbbi Müdahale",
             type = PointType.MEDICAL_TENT,
             latitude = 41.0125,
             longitude = 28.9750,
-            description = "Kızılay Sahra Hastanesi, Acil Müdahale ve Ambulans Noktası"
+            description = "AFAD & Kızılay Acil Sağlık İrtibat Çadırı",
+            source = "AFAD / Kızılay",
+            isOfficial = true
         ),
         DisasterPoint(
-            id = "DEF_3",
-            name = "Temiz Su Tankeri & Gıda Aşevi",
+            id = "AFAD_3",
+            name = "Merkez İSKİ Su Tankeri & Aşevi Dağıtım Noktası",
             type = PointType.WATER_SUPPLY,
             latitude = 41.0050,
             longitude = 28.9820,
-            description = "İSKİ Temiz Su Tankeri ve Sıcak Çorba Dağıtımı"
+            description = "Aşevi, İçme Suyu ve Mobil Jeneratör Noktası",
+            source = "e-Devlet AFAD",
+            isOfficial = true
         ),
         DisasterPoint(
-            id = "DEF_4",
-            name = "İkinci Şehir Parkı Toplanma Alanı",
+            id = "AFAD_4",
+            name = "Gülhane Parkı Açık Güvenli Bölge",
             type = PointType.ASSEMBLY_AREA,
-            latitude = 41.0150,
-            longitude = 28.9850,
-            description = "Açık Güvenli Bölge, Yangın ve Artçı Deprem Güvenlik Alanı"
+            latitude = 41.0130,
+            longitude = 28.9810,
+            description = "e-Devlet Onaylı AFAD İkincil Toplanma Alanı (KOD: AFAD-34-02)",
+            source = "e-Devlet AFAD",
+            isOfficial = true
+        ),
+        DisasterPoint(
+            id = "AFAD_5",
+            name = "Yenikapı Etkinlik Alanı Ana Deprem Kriz Merkezi",
+            type = PointType.ASSEMBLY_AREA,
+            latitude = 41.0020,
+            longitude = 28.9540,
+            description = "e-Devlet AFAD Bölgesel Ana Toplanma ve Çadır Kent Alanı",
+            source = "e-Devlet AFAD",
+            isOfficial = true
         )
     )
 }

@@ -32,13 +32,16 @@ import com.example.afetmesh.data.models.PeerNode
 import com.example.afetmesh.data.models.PointType
 import kotlin.math.*
 
+import com.example.afetmesh.data.mesh.EDevletAfadManager
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OfflineMapScreen(
     currentLocation: Location?,
     sosAlerts: List<MeshPacket>,
     peers: List<PeerNode>,
-    onAddCustomPoint: (DisasterPoint) -> Unit
+    onAddCustomPoint: (DisasterPoint) -> Unit,
+    eDevletAfadManager: EDevletAfadManager? = null
 ) {
     var centerLat by remember { mutableDoubleStateOf(currentLocation?.latitude ?: 41.0082) }
     var centerLon by remember { mutableDoubleStateOf(currentLocation?.longitude ?: 28.9784) }
@@ -58,7 +61,10 @@ fun OfflineMapScreen(
         }
     }
 
-    val assemblyPoints = remember { DefaultDisasterPoints.PRELOADED }
+    val assemblyPoints = remember(currentLocation) {
+        eDevletAfadManager?.getAssemblyPointsForLocation(currentLocation?.latitude, currentLocation?.longitude)
+            ?: DefaultDisasterPoints.PRELOADED
+    }
 
     Column(
         modifier = Modifier
@@ -73,7 +79,7 @@ fun OfflineMapScreen(
         ) {
             Column {
                 Text("ÇEVRİMDİŞİ AFET HARİTASI", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("İnternetsiz GPS ve Mesh Toplanma Noktaları", fontSize = 11.sp, color = Color.Gray)
+                Text("e-Devlet AFAD ve Mesh Toplanma Noktaları", fontSize = 11.sp, color = Color.Gray)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(
@@ -90,6 +96,57 @@ fun OfflineMapScreen(
                 }
                 IconButton(onClick = { showAddDialog = true }) {
                     Icon(Icons.Default.AddLocation, contentDescription = "Nokta Ekle", tint = Color(0xFF4CAF50))
+                }
+            }
+        }
+
+        Spacer(Modifier.height(6.dp))
+
+        // e-Devlet AFAD Acil Toplanma Alanı Sorgulama Banner
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        Icons.Default.Verified,
+                        contentDescription = "e-Devlet Onaylı",
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            "e-Devlet AFAD Toplanma Alanı",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            if (currentLocation != null) "GPS Konumuna Göre Çevrimdışı Listelendi" else "Varsayılan İl/İlçe Verisi Gösteriliyor",
+                            fontSize = 10.sp,
+                            color = Color.LightGray
+                        )
+                    }
+                }
+                Button(
+                    onClick = { eDevletAfadManager?.openEDevletQueryInBrowser() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text("e-Devlet'te Aç", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }
